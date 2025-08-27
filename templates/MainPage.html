@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+    <body style="background-color: powderblue;" onload="setInterval(() => {pingServer()}, 1*1000)">
+        <h1>Welcome to my web based monitor - Gregtech New Horizons</h1>
+        <p>Bare with me of the lack of efficiency</p>
+
+        <!-- Blank line space -->
+        <div id="adngin-mid_content-0" style="min-width: 468px; min-height: 50px; display: flex; justify-content: space-around; align-items: center; width: 468px; flex-direction: row;">
+            <div id="adngin-mid_content-0-adaptive-group-0-placement-0"></div>
+        </div>
+        
+        <div style="width: auto; height: auto;">
+            <h1>Server Active</h1>
+            <img id="ServerStartingMark" name="ServerStartingMark" src="{{url_for('static',filename='images/CrossMark.png')}}" style="max-width: 75px; max-height: 75px;" alt="Server Starting">
+            <img id="ServerActiveMark" name="ServerActiveMark" src="{{url_for('static',filename='images/CrossMark.png')}}" style="max-width: 75px; max-height: 75px;" alt="Server Active">
+        </div>
+        
+        <!-- Blank line space -->
+        <div id="adngin-mid_content-0" style="min-width: 468px; min-height: 50px; display: flex; justify-content: space-around; align-items: center; width: 468px; flex-direction: row;">
+            <div id="adngin-mid_content-0-adaptive-group-0-placement-0"></div>
+        </div>
+        
+        <h1>Server Actions</h1>
+        <div class="panel">
+            <button id="STAButton" class="btn" onclick="startServer()" disabled=false>Start Server</button>
+        </div>
+        
+        <!-- Blank line space -->
+        <div id="adngin-mid_content-0" style="min-width: 468px; min-height: 10px; display: flex; justify-content: space-around; align-items: center; width: 468px; flex-direction: row;">
+            <div id="adngin-mid_content-0-adaptive-group-0-placement-0"></div>
+        </div>
+        
+        <div class="panel">
+            <button id="STOButton" class="btn" onclick="stopServer()" disabled=false>Stop Server</button>
+        </div>
+        
+        <script>
+            function stopServer() {
+                fetch('192.168.8.22:8080/stop')
+                .then(r => r.text())
+                .then(t => alert('Server response: ' + t))
+                .catch(e => alert('Error: ' + e));
+            }
+
+            function startServer() {
+                fetch('192.168.8.22:8080/start')
+                .then(r => r.text())
+                .then(t => alert('Server response: ' + t))
+                .catch(e => alert('Error: ' + e));
+            }
+            
+            function pingServer() {
+                fetch('192.168.8.22:8080/awake', { signal: AbortSignal.timeout(5000) }).then((response) => {
+                    const STAbutton = document.getElementById("STAButton")
+                    STAbutton.disabled = response.ok
+
+                    const STObutton = document.getElementById("STOButton")
+                    STObutton.disabled = !response.ok
+
+                    const ServerActiveMark = document.getElementById("ServerActiveMark")
+                    if (response.ok) {
+                        ServerActiveMark.setAttribute("src", "{{url_for('static',filename='images/CheckMark.png')}}")
+                    } else {
+                        ServerActiveMark.setAttribute("src", "{{url_for('static',filename='images/CrossMark.png')}}")
+                    }
+                });
+
+                fetch('192.168.8.22:8080/starting', { signal: AbortSignal.timeout(5000) }).then((response) => {
+                    const ServerStartingMark = document.getElementById("ServerStartingMark")
+                    if (!response.ok) {
+                        ServerStartingMark.setAttribute("src", "{{url_for('static',filename='images/CheckMark.png')}}")
+                    } else {
+                        ServerStartingMark.setAttribute("src", "{{url_for('static',filename='images/CrossMark.png')}}")
+                    }
+                });
+            }
+        </script>
+    </body>
+</html>

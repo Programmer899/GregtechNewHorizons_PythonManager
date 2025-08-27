@@ -1,12 +1,14 @@
-import psutil, subprocess, time, socket, uuid, os
+import psutil, subprocess, time, socket, uuid
 from pathlib import Path
-from flask import Flask, Response, request
+from flask import Flask, Response, render_template, request
+
+# Own modules
 from mem import Memorization
+from checkIfServerRunning import check_port
+from ShutdownServer import ShutdownServer
 
 app = Flask(__name__)
-# socketIo = SocketIO(app)
 
-serverName = "GTNH Server"
 # serverStartCMD = 'D:\\MinecraftServers\\Modded\\GregTech_New_Horizons\\GT_New_Horizons_2.7.4_Server_Java_17-21\\startserver-java9.bat'
 # serverStartARGS = ['C:\\WINDOWS\\system32\\cmd.exe', '/c', 'D:\\MinecraftServers\\Modded\\GregTech_New_Horizons\\GT_New_Horizons_2.7.4_Server_Java_17-21\\startserver-java9.bat']
 # serverStartCMD = r'C:\\WINDOWS\\system32\\cmd.exe'
@@ -18,108 +20,118 @@ serverCwd = "D:/MinecraftServers/Modded/GregTech_New_Horizons/GT_New_Horizons_2.
 playitggStartCMD = "C:\\Users\\lindg\\Apps\\playit_gg\\bin\\playit.exe"
 playitggStartCWD = "C:\\Users\\lindg\\Apps\\playit_gg\\bin"
 
+serverName = "GTNH Server"
+playitName = "Playit.gg"
+
 serverPID = -1
 playit_gg_PID = -1
 
-mem = Memorization(Path("knownPids"))
 # print(mem.Memorize(25575, "java.exe"))
 # print(mem.GetMemory(25575, "ja34.exe"))
 
 # Double check that the server pids was still valid (not changed)
-if Path("knownPids").exists():
-    checkedPaths = []
+knownPidsPath = Path("knownPids")
+processOutInPath = Path("processOutIn")
+mem = Memorization(knownPidsPath)
 
-    worked = False
-    for knownPid in Path("knownPids").iterdir():
-        pid, name, _, _, _ = Path.read_text(Path(knownPid)).split("|")
-        pid = int(pid)
-        if name == serverName or name == "Playit.gg":
-            # mem.readMode = "normal"
-            string_res, nr_res, stdIN, stdOUT, stdERR = mem.GetMemory(pid, name)
-            # mem.readMode = "text"
-            # string_res = mem.GetMemory(pid, name)
-            if nr_res == 1:
-                if name == serverName:
-                    serverPID = pid
-                elif name == "Playit.gg":
-                    playit_gg_PID = pid
+if knownPidsPath.exists():
+    if processOutInPath.exists():
+        checkedPaths = []
 
-                if stdIN.exists():
-                    checkedPaths.append(stdIN)
-
-                if stdOUT.exists():
-                    checkedPaths.append(stdOUT)
-
-                if stdERR.exists():
-                    checkedPaths.append(stdERR)
-
-                worked = True
-
-            if nr_res == 2 or nr_res == 4:
-                pidInPath = Path(stdIN)
-                pidOutPath = Path(stdOUT)
-                pidErrPath = Path(stdERR)
-                
-                if pidOutPath.exists():
-                    pidOutPath.unlink()
-
-                if pidInPath.exists():
-                    pidOutPath.unlink()
-
-                if pidErrPath.exists():
-                    pidOutPath.unlink()
-            
-            print(f"File: {knownPid} had memory result: {string_res}")
-        
-    for path in Path("ProcessOutIn").iterdir():
-        if path not in checkedPaths:
-            path.unlink()
-    
-    if not worked:
-        print("There was no pids to double check")
-
-    # mem.readMode = "text"
-    if serverPID == -1 or playit_gg_PID == -1:
-        if serverPID == -1:
-            print(f"Checking if server is running under name: {serverName}")
-
-        if playit_gg_PID == -1:
-            print(f"Checking if playit is running under name: Playit.gg")
-
-        for pid in psutil.pids():
-            # print(f"Checking pid: {pid}")
-            try:
-                p = psutil.Process(pid)
-                # print(p.cmdline())
-
-                if serverPID == -1:
-                    if f"{p.cmdline()}".find(f'$host.ui.RawUI.WindowTitle = "{serverName}"') != -1:
+        worked = False
+        for knownPid in knownPidsPath.iterdir():
+            pid, name, _, _, _ = Path.read_text(Path(knownPid)).split("|")
+            pid = int(pid)
+            if name == serverName or name == playitName:
+                # mem.readMode = "normal"
+                string_res, nr_res, stdIN, stdOUT, stdERR = mem.GetMemory(pid, name)
+                # mem.readMode = "text"
+                # string_res = mem.GetMemory(pid, name)
+                if nr_res == 1:
+                    if name == serverName:
                         serverPID = pid
                         
-                        name = p.cmdline()[1].split(";")[1].replace(" $host.ui.RawUI.WindowTitle = ", "")[1:-1]
-                        print(mem.Memorize(pid, name))
-
-                if playit_gg_PID == -1:
-                    if f"{p.cmdline()}".find('$host.ui.RawUI.WindowTitle = "Playit.gg"') != -1:
+                    elif name == playitName:
                         playit_gg_PID = pid
 
-                        name = p.cmdline()[1].split(";")[1].replace(" $host.ui.RawUI.WindowTitle = ", "")[1:-1]
-                        print(mem.Memorize(pid, name))
+                    if stdIN.exists() and (stdIN != "." and stdIN != ".."):
+                        checkedPaths.append(stdIN)
 
-            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess) as e:
-                pass
+                    if stdOUT.exists() and (stdOUT != "." and stdOUT != ".."):
+                        checkedPaths.append(stdOUT)
 
-        if serverPID == -1:
-            print(f"{serverName} could be found under name: {serverName}")
+                    if stdERR.exists() and (stdERR != "." and stdERR != ".."):
+                        checkedPaths.append(stdERR)
 
-        if playit_gg_PID == -1:
-            print(f"Playit could not be found under name: Playit.gg")
+                    worked = True
 
-def check_port_active(port):
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    res = sock.connect_ex(('localhost', port))
-    sock.close()
-    return res == 0
+                if nr_res == 2 or nr_res == 4:
+                    pidInPath = Path(stdIN)
+                    pidOutPath = Path(stdOUT)
+                    pidErrPath = Path(stdERR)
+                    
+                    if pidInPath.exists():
+                        print(f"{pidInPath} was found in {name}")
+                        # pidInPath.unlink()
+
+                    if pidOutPath.exists():
+                        print(f"{pidOutPath} was found in {name}")
+                        # pidOutPath.unlink()
+
+                    if pidErrPath.exists():
+                        print(f"{pidErrPath} was found in {name}")
+                        # pidErrPath.unlink()
+
+                    raise OSError("erger")
+                
+                print(f"File: {knownPid} had memory result: {string_res}")
+            
+        for path in processOutInPath.iterdir():
+            if path not in checkedPaths:
+                path.unlink()
+        
+        if not worked:
+            print("There was no pids to double check")
+
+        # mem.readMode = "text"
+        if serverPID == -1 or playit_gg_PID == -1:
+            if serverPID == -1:
+                print(f"Checking if server is running under name: {serverName}")
+
+            if playit_gg_PID == -1:
+                print(f"Checking if playit is running under name: {playitName}")
+
+            for pid in psutil.pids():
+                # print(f"Checking pid: {pid}")
+                try:
+                    p = psutil.Process(pid)
+                    # print(p.cmdline())
+
+                    if serverPID == -1:
+                        if f"{p.cmdline()}".find("GT_New_Horizons_2.7.4_Server_Java_17-21") != -1:
+                            serverPID = pid
+                            
+                            print(mem.Memorize(pid, serverName))
+                            
+                    if playit_gg_PID == -1:
+                        if f"{p.cmdline()}".find(f'$host.ui.RawUI.WindowTitle = "{playitName}"') != -1:
+                            playit_gg_PID = pid
+
+                            name = p.cmdline()[1].split(";")[1].replace(" $host.ui.RawUI.WindowTitle = ", "")[1:-1]
+                            print(mem.Memorize(pid, playitName))
+
+                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess) as e:
+                    pass
+
+            if serverPID == -1:
+                print(f"{serverName} could be found under name: {serverName}")
+
+            if playit_gg_PID == -1:
+                print(f"Playit could not be found under name: {playitName}")
+    else:
+        print(f"Warning, server run at own risk. {processOutInPath} not found")
+else:
+    print(f"Warning, server run at own risk. {knownPidsPath} not found")
 
 @app.errorhandler(Exception)
 def internal_error(error):
@@ -129,38 +141,7 @@ def internal_error(error):
 def not_found(error):
     return "Excuse me, this page does not exist!"
 
-# async def applicationRunning(name: str, recursive: bool = False):
 async def applicationRunning(pid: int):
-    # if recursive:
-    #     output = subprocess.check_output(
-    #         f'tasklist /v /fo csv /fi "imagename eq {name}"', shell=True, text=True
-    #     ).split("\n")
-    # else:
-    #     output = subprocess.check_output(
-    #         f'tasklist /v /fo csv /fi "imagename eq WindowsTerminal.exe"', shell=True, text=True
-    #     ).split("\n")
-
-    # output.pop(0)
-
-    # recursiveList = []
-
-    # if output:
-    #     for line in output:
-    #         if name in line:
-    #             print(line)
-    #             window = line.split(",")[-1]
-    #             # print(window)
-    #             if recursive:
-    #                 recursiveList.append(window)
-    #             else:
-    #                 return True
-    #             # recursiveList.append(window.split("\\")[-1])
-        
-    #     if recursive:
-    #         return recursiveList
-
-    # return False
-
     if pid == -1:
         return False
 
@@ -184,11 +165,10 @@ async def serverOn(asText: bool = False):
         return False
 
 @app.route('/awake')
-def awake():
-    global serverIsOn
+async def awake():
     # serverIsOn = not serverIsOn
     resp = Response()
-    if serverOn():
+    if await serverOn():
         resp.status = 200
     else:
         resp.status = 503
@@ -197,21 +177,42 @@ def awake():
     # return "Server started successfully!"
     return resp
 
-@app.route('/sendMessage', methods=["POST", "GET"])
-def sendMessage():
-    if request.method == "POST":
-        resp = Response()
+@app.route('/starting')
+async def starting():
+    # serverIsOn = not serverIsOn
+    resp = Response()
+    if await check_port(25575) and not await serverOn():
         resp.status = 200
-        resp.set_data("Recieved")
+    else:
+        resp.status = 503
+        
+    # print("Received /start request")
+    # return "Server started successfully!"
+    return resp
 
-        print(request.data)
+# @app.route('/sendMessage', methods=["POST", "GET"])
+# def sendMessage():
+#     if request.method == "POST":
+#         resp = Response()
+#         resp.status = 200
+#         resp.set_data("Recieved")
 
-        return resp
+#         print(request.data)
 
-    elif request.method == "GET":
-        return "HELLO"
+#         return resp
+
+#     elif request.method == "GET":
+#         return "HELLO"
     
-    return ""
+#     return ""
+
+@app.route('/stop')
+async def stopServer():
+    if await serverOn() or check_port(25575):
+        await ShutdownServer()
+        return "Server has now been closed"
+    else:
+        return "Server is already closed"
 
 @app.route('/start')
 async def startServer():
@@ -250,14 +251,14 @@ async def startServer():
                 
                 # Create temporary uuid for file
                 tmpUUID = uuid.uuid4()
-                stdinPath = Path(f"ProcessOutIn/{tmpUUID}_input.txt")
-                stdoutPath = Path(f"ProcessOutIn/{tmpUUID}_output.txt")
-                stderrPath = Path(f"ProcessOutIn/{tmpUUID}_err.txt")
+                stdinPath  = Path(f"{processOutInPath}/{tmpUUID}_GTNH_input.txt")
+                stdoutPath = Path(f"{processOutInPath}/{tmpUUID}_GTNH_output.txt")
+                stderrPath = Path(f"{processOutInPath}/{tmpUUID}_GTNH_err.txt")
 
                 # Create temporary files
-                Path.touch(stdinPath)
-                Path.touch(stdoutPath)
-                Path.touch(stderrPath)
+                stdinPath.touch()
+                stdoutPath.touch()
+                stderrPath.touch()
 
                 # Set files and launch process
                 with open(stdinPath, "r") as f_in, open(stdoutPath, "w") as f_out, open(stderrPath, "w") as f_err:
@@ -295,19 +296,19 @@ async def startServer():
                 # command = f'title {serverName} && "{playitggStartCMD}"'
                 # command = ['cmd.exe', '/C', f'title Playit.gg && "{playitggStartCMD}"']
                 # command = ['cmd.exe', '/K', f'cd "{playitggStartCWD}" && title Playit.gg && "{playitggStartCMD}"']
-                command = ['powershell.exe', f'cd "{playitggStartCWD}"; $host.ui.RawUI.WindowTitle = "Playit.gg"; & "{playitggStartCMD}"']
+                command = ['powershell.exe', f'cd "{playitggStartCWD}"; $host.ui.RawUI.WindowTitle = "{playitName}"; & "{playitggStartCMD}"']
                 # print(command)
 
                 # Create temporary uuid for file
                 tmpUUID = uuid.uuid4()
-                stdinPath = Path(f"PrecessOutIn/{tmpUUID}_input.txt")
-                stdoutPath = Path(f"PrecessOutIn/{tmpUUID}_output.txt")
-                stderrPath = Path(f"PrecessOutIn/{tmpUUID}_err.txt")
+                stdinPath  = Path(f"{processOutInPath}/{tmpUUID}_PlayitGG_input.txt")
+                stdoutPath = Path(f"{processOutInPath}/{tmpUUID}_PlayitGG_output.txt")
+                stderrPath = Path(f"{processOutInPath}/{tmpUUID}_PlayitGG_err.txt")
 
                 # Create temporary files
-                Path.touch(stdinPath)
-                Path.touch(stdoutPath)
-                Path.touch(stderrPath)
+                stdinPath.touch()
+                stdoutPath.touch()
+                stderrPath.touch()
 
                 with open(stdinPath, "r") as f_in, open(stdoutPath, "w") as f_out, open(stderrPath, "w") as f_err:
                     proc = subprocess.Popen(command, stdin=f_in, stdout=f_out, stderr=f_err, cwd=playitggStartCWD, creationflags=flags, close_fds=True)
@@ -358,63 +359,17 @@ async def startServer():
                 return f"Server or playit.gg could not start, unknown cause"
 
         except OSError as e:
+            print(OSError(f"Server error catched... Aborting!   Error was: {e}"))
             raise Exception(f"Server error catched... Aborting!   Error was: {e}")
             
     else:
-        return "Server is already on"
+        # return "Server is already on"
+        return Home()
 
-def PrintSafeProcess(process: psutil.Process):
-    try:
-        print(f"Pid: {process.pid}")
-    except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess) as e:
-        pass
-    try:
-        print(f"Name: {process.name()}")
-    except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess) as e:
-        pass
-    try:
-        print(f"Username: {process.username()}")
-    except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess) as e:
-        pass
-    try:
-        print(f"Exe path: {process.exe()}")
-    except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess) as e:
-        pass
-    try:
-        print(f"Working directory: {process.cwd()}")
-    except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess) as e:
-        pass
-    # try:
-    #     print(f"Children:\n{process.children(True)}")
-    # except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess) as e:
-    #     pass
-    try:
-        print(f"Cmdline called: {process.cmdline()}")
-    except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess) as e:
-        pass
+@app.route('/')
+def Home():
+    return render_template("MainPage.html")
 
 if __name__ == '__main__':
-    # for pid_raw in psutil.pids():
-    #     # pid = pid_raw.pid
-    #     pid = pid_raw
-    #     try:
-    #         if psutil.pid_exists(pid):
-    #             p = psutil.Process(pid)
-
-    #             PrintSafeProcess(p)
-    #     except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess) as e:
-    #         # print(e)
-    #         pass
-
-    #     print()
-
-    # print(applicationRunning("Playit.gg"))
-    
-    app.run(host='0.0.0.0', port=8080)
-
-    while True:
-        if serverPID != -1:
-            pass
-
+    app.run(host='0.0.0.0', port=8080, debug=True)
     # socketIo.run(app, host='0.0.0.0', port=8080, debug=True)
-    pass
