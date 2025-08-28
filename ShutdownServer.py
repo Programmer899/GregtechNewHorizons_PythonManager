@@ -3,7 +3,7 @@ from mcstatus import JavaServer
 from flask import Response
 import time
 
-def ShutdownServer():
+def ShutdownServer() -> Response:
 # def ShutdownServer():
     """Tries to send the "/shutdown" command to the server via the set address and set port"""
 

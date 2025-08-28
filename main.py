@@ -228,7 +228,7 @@ async def starting():
     global serverStartMode
     resp = Response()
     data = serverPing.Ping()
-    if serverStartMode and not await serverOn() and data == None:
+    if serverStartMode and data == None:
         resp.status = 200
     else:
         resp.status = 503
@@ -255,6 +255,7 @@ async def starting():
 
 @app.route('/computerTurnOff')
 async def computerTurnOff():
+    global everythingOn
     global playit_gg_PID
 
     playitRunning = False
@@ -265,7 +266,8 @@ async def computerTurnOff():
         if p.is_running():
             playitRunning = True
     
-    if not playitRunning and not await serverOn() and not check_port(25575):
+    if playitRunning == False and not check_port(25575):
+        everythingOn = False
         subprocess.run(["shutdown", "-s"])
 
         return "Computer is now turning off"
@@ -274,7 +276,10 @@ async def computerTurnOff():
 
 @app.route('/computerFORCEOff')
 async def computerFORCEOff():
+    global everythingOn
+
     ShutdownServer()
+    everythingOn = False
 
     subprocess.run(["shutdown", "-s"])
 
@@ -297,7 +302,7 @@ async def stopServer():
             if p.is_running():
                 p.kill()
 
-        return f"{resp}"
+        return f"{resp.data}"
         # return "Server has now been closed"
     else:
         return "Server is already closed"
@@ -416,37 +421,37 @@ async def startServer():
 
                     print("Started playit.gg")
 
-            for n in range(10 +1):
-                n = 10-n
-                if n <= 0:
-                    return f"Server could not be started or took more than 10 seconds"
-                string = f"Waiting for server ping, {n}"
-                print(string)
-                # emit('Waiting for server ping', {'n': f'{10-n}'}, broadcast=True)
-                # return f"Waiting for server ping, {10-n}"
-                time.sleep(1)
-                if await serverOn():
-                    break
+            # for n in range(10 +1):
+            #     n = 10-n
+            #     if n <= 0:
+            #         return f"Server could not be started or took more than 10 seconds"
+            #     string = f"Waiting for server ping, {n}"
+            #     print(string)
+            #     # emit('Waiting for server ping', {'n': f'{10-n}'}, broadcast=True)
+            #     # return f"Waiting for server ping, {10-n}"
+            #     time.sleep(1)
+            #     if await serverOn():
+            #         break
 
-            for n in range(10 +1):
-                n = 10-n
-                if n <= 0:
-                    return f"Playit.gg could not be started or took more than 10 seconds"
-                string = f"Waiting for playit ping, {n}"
-                print(string)
-                # emit('Waiting for playit ping', {'n': f'{10-n}'}, broadcast=True)
-                # return f"Waiting for playit ping, {10-n}"
-                time.sleep(1)
-                # if await applicationRunning("Playit.gg"):
-                if await applicationRunning(playit_gg_PID, playit=True):
-                    break
+            # for n in range(10 +1):
+            #     n = 10-n
+            #     if n <= 0:
+            #         return f"Playit.gg could not be started or took more than 10 seconds"
+            #     string = f"Waiting for playit ping, {n}"
+            #     print(string)
+            #     # emit('Waiting for playit ping', {'n': f'{10-n}'}, broadcast=True)
+            #     # return f"Waiting for playit ping, {10-n}"
+            #     time.sleep(1)
+            #     # if await applicationRunning("Playit.gg"):
+            #     if await applicationRunning(playit_gg_PID, playit=True):
+            #         break
             
             # if await serverOn() and await applicationRunning("Playit.gg"):
-            if await serverOn() and await applicationRunning(playit_gg_PID, playit=True):
-                return f"Server and playit.gg started succesfully"
-            else:
-                serverStartMode = False
-                return f"Server or playit.gg could not start, unknown cause"
+            return f"Server and playit.gg are started"
+            # if await serverOn() and await applicationRunning(playit_gg_PID, playit=True):
+            # else:
+            #     serverStartMode = False
+            #     return f"Server or playit.gg could not start, unknown cause"
 
         except OSError as e:
             print(OSError(f"Server error catched... Aborting!   Error was: {e}"))
@@ -456,10 +461,6 @@ async def startServer():
     else:
         # return "Server is already on"
         return Home()
-
-@app.route('/')
-def Home():
-    return render_template("MainPage.html")
 
 def updatePids():
     global serverPID, playit_gg_PID
@@ -536,10 +537,12 @@ def updatePids():
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess) as e:
                 pass
 
+@app.route('/')
+def Home():
+    updatePids()
+    return render_template("MainPage.html")
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080, debug=True)
 
-    while everythingOn:
-        updatePids()
-    
     print(f"Everything has now been closed")
