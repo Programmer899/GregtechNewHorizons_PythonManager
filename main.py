@@ -270,12 +270,27 @@ async def computerTurnOff():
 
         return "Computer is now turning off"
 
-    return "Computer could not be turned off"
+    return "Computer could not be turned off, server or playit is still on"
+
+@app.route('/computerFORCEOff')
+async def computerFORCEOff():
+    ShutdownServer()
+
+    subprocess.run(["shutdown", "-s"])
+
+    try:
+        if psutil.pid_exists(playit_gg_PID):
+            p = psutil.Process(playit_gg_PID)
+            p.kill()
+    except OSError:
+        pass
+
+    return "Computer was forced to shut down"
 
 @app.route('/stop')
 async def stopServer():
     if await serverOn() or check_port(25575):
-        resp = await ShutdownServer()
+        resp = ShutdownServer()
         
         if psutil.pid_exists(playit_gg_PID):
             p = psutil.Process(playit_gg_PID)

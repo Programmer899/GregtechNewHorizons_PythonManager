@@ -58,7 +58,11 @@
         </div>
         <div>
             <div class="panel">
-                <button id="computerTurnOff" name="computerTurnOff" class="btn" onclick="stop()">Turn of computer</button>
+                <button id="computerTurnOff" name="computerTurnOff" class="btn" onclick="computerTurnOff()">Turn of computer</button>
+            </div>
+
+            <div class="panel">
+                <button id="computerFORCEOff" name="computerFORCEOff" class="btn" onclick="computerFORCEOff()">Force shut down computer</button>
             </div>
         </div>
         
@@ -79,6 +83,13 @@
 
             function computerTurnOff() {
                 fetch('/computerTurnOff')
+                .then(r => r.text())
+                .then(t => alert('Server response: ' + t))
+                .catch(e => alert('Error: ' + e));
+            }
+
+            function computerFORCEOff() {
+                fetch('/computerFORCEOff')
                 .then(r => r.text())
                 .then(t => alert('Server response: ' + t))
                 .catch(e => alert('Error: ' + e));
