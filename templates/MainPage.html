@@ -9,54 +9,83 @@
             <div id="adngin-mid_content-0-adaptive-group-0-placement-0"></div>
         </div>
         
-        <div style="width: auto; height: auto;">
-            <h1>Server Active</h1>
-            <img id="ServerStartingMark" name="ServerStartingMark" src="{{url_for('static',filename='images/CrossMark.png')}}" style="max-width: 75px; max-height: 75px;" alt="Server Starting">
-            <img id="ServerActiveMark" name="ServerActiveMark" src="{{url_for('static',filename='images/CrossMark.png')}}" style="max-width: 75px; max-height: 75px;" alt="Server Active">
+        <div>
+            <div>
+                <div style="width: auto; height: auto;">
+                    <h1>Server Active</h1>
+                    <img id="ServerStartingMark" name="ServerStartingMark" src="{{url_for('static',filename='images/CrossMark.png')}}" style="max-width: 75px; max-height: 75px;" alt="Server Starting">
+                    <img id="ServerActiveMark" name="ServerActiveMark" src="{{url_for('static',filename='images/CrossMark.png')}}" style="max-width: 75px; max-height: 75px;" alt="Server Active">
+                </div>
+                
+                <!-- Blank line space -->
+                <div id="adngin-mid_content-0" style="min-width: 468px; min-height: 50px; display: flex; justify-content: space-around; align-items: center; width: 468px; flex-direction: row;">
+                    <div id="adngin-mid_content-0-adaptive-group-0-placement-0"></div>
+                </div>
+            </div>
+    
+            <div>
+                <div style="width: auto; height: auto;">
+                    <h1>Playit Active</h1>
+                    <img id="PlayitActiveMark" name="PlayitActiveMark" src="{{url_for('static',filename='images/CrossMark.png')}}" style="max-width: 75px; max-height: 75px;" alt="Playit Active">
+                </div>
+                
+                <!-- Blank line space -->
+                <div id="adngin-mid_content-0" style="min-width: 468px; min-height: 50px; display: flex; justify-content: space-around; align-items: center; width: 468px; flex-direction: row;">
+                    <div id="adngin-mid_content-0-adaptive-group-0-placement-0"></div>
+                </div>
+            </div>
+            
+            <div>
+                <h1>Actions</h1>
+                <div class="panel">
+                    <button id="StartButton" name="StartButton" class="btn" onclick="start()" disabled=false>Start</button>
+                </div>
+                
+                <!-- Blank line space -->
+                <div id="adngin-mid_content-0" style="min-width: 468px; min-height: 10px; display: flex; justify-content: space-around; align-items: center; width: 468px; flex-direction: row;">
+                    <div id="adngin-mid_content-0-adaptive-group-0-placement-0"></div>
+                </div>
+                
+                <div class="panel">
+                    <button id="StopButton" name="StopButton" class="btn" onclick="stop()" disabled=false>Stop</button>
+                </div>
+                
+                <!-- Blank line space -->
+                <div id="adngin-mid_content-0" style="min-width: 468px; min-height: 50px; display: flex; justify-content: space-around; align-items: center; width: 468px; flex-direction: row;">
+                    <div id="adngin-mid_content-0-adaptive-group-0-placement-0"></div>
+                </div>
+            </div>
         </div>
-        
-        <!-- Blank line space -->
-        <div id="adngin-mid_content-0" style="min-width: 468px; min-height: 50px; display: flex; justify-content: space-around; align-items: center; width: 468px; flex-direction: row;">
-            <div id="adngin-mid_content-0-adaptive-group-0-placement-0"></div>
-        </div>
-        
-        <h1>Server Actions</h1>
-        <div class="panel">
-            <button id="STAButton" class="btn" onclick="startServer()" disabled=false>Start Server</button>
-        </div>
-        
-        <!-- Blank line space -->
-        <div id="adngin-mid_content-0" style="min-width: 468px; min-height: 10px; display: flex; justify-content: space-around; align-items: center; width: 468px; flex-direction: row;">
-            <div id="adngin-mid_content-0-adaptive-group-0-placement-0"></div>
-        </div>
-        
-        <div class="panel">
-            <button id="STOButton" class="btn" onclick="stopServer()" disabled=false>Stop Server</button>
+        <div>
+            <div class="panel">
+                <button id="computerTurnOff" name="computerTurnOff" class="btn" onclick="stop()">Turn of computer</button>
+            </div>
         </div>
         
         <script>
-            function stopServer() {
-                fetch('192.168.8.22:8080/stop')
+            function stop() {
+                fetch('/stop')
+                .then(r => r.text())
+                .then(t => alert('Server response: ' + t))
+                .catch(e => alert('Error: ' + e));
+            }
+            
+            function start() {
+                fetch('/start')
                 .then(r => r.text())
                 .then(t => alert('Server response: ' + t))
                 .catch(e => alert('Error: ' + e));
             }
 
-            function startServer() {
-                fetch('192.168.8.22:8080/start')
+            function computerTurnOff() {
+                fetch('/computerTurnOff')
                 .then(r => r.text())
                 .then(t => alert('Server response: ' + t))
                 .catch(e => alert('Error: ' + e));
             }
             
             function pingServer() {
-                fetch('192.168.8.22:8080/awake', { signal: AbortSignal.timeout(5000) }).then((response) => {
-                    const STAbutton = document.getElementById("STAButton")
-                    STAbutton.disabled = response.ok
-
-                    const STObutton = document.getElementById("STOButton")
-                    STObutton.disabled = !response.ok
-
+                fetch('/awake/GTNH', { signal: AbortSignal.timeout(5000) }).then((response) => {
                     const ServerActiveMark = document.getElementById("ServerActiveMark")
                     if (response.ok) {
                         ServerActiveMark.setAttribute("src", "{{url_for('static',filename='images/CheckMark.png')}}")
@@ -65,9 +94,31 @@
                     }
                 });
 
-                fetch('192.168.8.22:8080/starting', { signal: AbortSignal.timeout(5000) }).then((response) => {
+                fetch('/awake/Playit', { signal: AbortSignal.timeout(5000) }).then((response) => {
+                    const PlayitActiveMark = document.getElementById("PlayitActiveMark")
+                    if (response.ok) {
+                        PlayitActiveMark.setAttribute("src", "{{url_for('static',filename='images/CheckMark.png')}}")
+                    } else {
+                        PlayitActiveMark.setAttribute("src", "{{url_for('static',filename='images/CrossMark.png')}}")
+                    }
+                });
+
+                fetch('/awake/All', { signal: AbortSignal.timeout(5000) }).then((response) => {
+                    const StartButton = document.getElementById("StartButton")
+                    const StopButton = document.getElementById("StopButton")
+                    const computerTurnOffButton = document.getElementById("computerTurnOffButton")
+                    if (response.ok) {
+                        StartButton.disabled = true
+                        StopButton.disabled = false
+                    } else {
+                        StartButton.disabled = false
+                        StopButton.disabled = true
+                    }
+                });
+
+                fetch('/starting', { signal: AbortSignal.timeout(5000) }).then((response) => {
                     const ServerStartingMark = document.getElementById("ServerStartingMark")
-                    if (!response.ok) {
+                    if (response.ok) {
                         ServerStartingMark.setAttribute("src", "{{url_for('static',filename='images/CheckMark.png')}}")
                     } else {
                         ServerStartingMark.setAttribute("src", "{{url_for('static',filename='images/CrossMark.png')}}")
