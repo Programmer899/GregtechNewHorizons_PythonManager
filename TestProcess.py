@@ -1,4 +1,4 @@
-import psutil
+import psutil, os, signal
 
 # async def applicationRunning(name: str, recursive: bool = False):
 async def applicationRunning(pid: int, raw: bool):
@@ -46,13 +46,16 @@ async def applicationRunning(pid: int, raw: bool):
     
     return False
 
-def PrintSafeProcess(process: psutil.Process):
+def PrintSafeProcess(filterName, process: psutil.Process):
     try:
-        print(f"Pid: {process.pid}")
+        print(f"Name: {process.name()}")
+        if process.name().lower().find(filterName.lower()) == -1:
+            return
+        os.kill(process.pid, signal.SIGINT)
     except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess) as e:
         pass
     try:
-        print(f"Name: {process.name()}")
+        print(f"Pid: {process.pid}")
     except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess) as e:
         pass
     try:
@@ -65,6 +68,10 @@ def PrintSafeProcess(process: psutil.Process):
         pass
     try:
         print(f"Working directory: {process.cwd()}")
+    except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess) as e:
+        pass
+    try:
+        print(f"Process Environ: {process.environ()}")
     except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess) as e:
         pass
     # try:
@@ -84,7 +91,7 @@ if __name__ == '__main__':
             if psutil.pid_exists(pid):
                 p = psutil.Process(pid)
 
-                PrintSafeProcess(p)
+                PrintSafeProcess("playit", p)
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess) as e:
             # print(e)
             pass

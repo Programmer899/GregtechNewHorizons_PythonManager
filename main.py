@@ -1,12 +1,15 @@
-import psutil, subprocess, time, os, uuid
+import psutil, subprocess, time, os, uuid, signal, threading
 from pathlib import Path
 from flask import Flask, Response, render_template, request
 
 # Own modules
-from mem import Memorization
-from checkIfServerRunning import check_port
-from ShutdownServer import ShutdownServer
-from pingMinecraftServer import ServerPingResponse, ServerPing
+from Helpers.mem import Memorization
+from Helpers.checkIfServerRunning import check_port
+from Helpers.ShutdownServer import ShutdownServer
+from Helpers.pingMinecraftServer import ServerPingResponse, ServerPing
+from Helpers.findApplication import findApplication
+from Helpers.controlled import WhileFunctionWithStop, ControlledThread
+from Helpers.repeatedFunction import RepeatedFunction
 
 app = Flask(__name__)
 
@@ -23,9 +26,18 @@ playitggStartCWD = "C:\\Users\\lindg\\Apps\\playit_gg\\bin"
 
 serverName = "GTNH Server"
 playitName = "Playit.gg"
+playitCliName = "playit"
 
 serverPID = -1
 playit_gg_PID = -1
+playitCli_PID = -1
+
+# Running processes for easier use
+serverProcess = None
+playitProcess = None
+playitCliProcess = None
+
+stopUpdateThread = False
 
 serverPing = ServerPing("127.0.0.1", 25575)
 serverStartMode = False
@@ -37,6 +49,10 @@ knownPidsPath = Path("knownPids")
 processOutInPath = Path("processOutIn")
 mem = Memorization(knownPidsPath)
 
+with open("WebService\\service.log", "w") as f:
+    f.write("")
+    f.close()
+
 if knownPidsPath.exists():
     if processOutInPath.exists():
         checkedPaths = []
@@ -45,7 +61,7 @@ if knownPidsPath.exists():
         for knownPid in knownPidsPath.iterdir():
             pid, name, _, _, _ = Path.read_text(Path(knownPid)).split("|")
             pid = int(pid)
-            if name == serverName or name == playitName:
+            if name == serverName or name == playitName or name == playitCliName:
                 # mem.readMode = "normal"
                 string_res, nr_res, stdIN, stdOUT, stdERR = mem.GetMemory(pid, name)
                 # mem.readMode = "text"
@@ -53,9 +69,15 @@ if knownPidsPath.exists():
                 if nr_res == 1:
                     if name == serverName:
                         serverPID = pid
+                        serverProcess = psutil.Process(pid)
                         
                     elif name == playitName:
                         playit_gg_PID = pid
+                        playitProcess = psutil.Process(pid)
+
+                    elif name == playitCliName:
+                        playitCli_PID = pid
+                        playitCliProcess = psutil.Process(pid)
 
                     if stdIN.exists() and (stdIN != "." and stdIN != ".."):
                         checkedPaths.append(stdIN)
@@ -69,6 +91,15 @@ if knownPidsPath.exists():
                     worked = True
 
                 if nr_res == 2 or nr_res == 4:
+                    if name == serverName:
+                        serverProcess = None
+                        
+                    elif name == playitName:
+                        playitProcess = None
+
+                    elif name == playitCliName:
+                        playitCliProcess = None
+
                     pidInPath = Path(stdIN)
                     pidOutPath = Path(stdOUT)
                     pidErrPath = Path(stdERR)
@@ -95,40 +126,72 @@ if knownPidsPath.exists():
             print("There was no pids to double check")
 
         # mem.readMode = "text"
-        if serverPID == -1 or playit_gg_PID == -1:
+        if serverPID == -1 or playit_gg_PID == -1 or playitCli_PID == -1:
             if serverPID == -1:
                 print(f"Checking if server is running under name: {serverName}")
 
             if playit_gg_PID == -1:
                 print(f"Checking if playit is running under name: {playitName}")
 
-            for pid in psutil.pids():
-                # print(f"Checking pid: {pid}")
-                try:
-                    p = psutil.Process(pid)
-                    # print(p.cmdline())
+            if playitCli_PID == -1:
+                print(f"Checking if playit-cli is running under name: {playitName}")
 
-                    if serverPID == -1:
-                        if f"{p.cmdline()}".find("GT_New_Horizons_2.7.4_Server_Java_17-21") != -1:
-                            serverPID = pid
-                            
-                            print(mem.Memorize(pid, serverName))
-                            
-                    if playit_gg_PID == -1:
-                        if f"{p.cmdline()}".find(f'$host.ui.RawUI.WindowTitle = "{playitName}"') != -1:
-                            playit_gg_PID = pid
+            try:
+                # p = psutil.Process(pid)
 
-                            name = p.cmdline()[1].split(";")[1].replace(" $host.ui.RawUI.WindowTitle = ", "")[1:-1]
-                            print(mem.Memorize(pid, playitName))
+                # if serverPID == -1:
+                #     if f"{p.cmdline()}".find("GT_New_Horizons_2.7.4_Server_Java_17-21") != -1:
+                #         serverPID = pid
+                        
+                #         print(mem.Memorize(pid, serverName))
 
-                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess) as e:
-                    pass
+                p = findApplication("CommandLine", "GT_New_Horizons_2.7.4_Server_Java_17-21")
 
+                if p != None:
+                    serverPID = p.pid
+                    serverProcess = psutil.Process(p.pid)
+                    
+                    print(mem.Memorize(p.pid, serverName))
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess) as e:
+                pass
+
+            try:
+                # if playit_gg_PID == -1:
+                #     if f"{p.cmdline()}".find(f'$host.ui.RawUI.WindowTitle = "{playitName}"') != -1:
+                #         playit_gg_PID = pid
+
+                #         name = p.cmdline()[1].split(";")[1].replace(" $host.ui.RawUI.WindowTitle = ", "")[1:-1]
+                #         print(mem.Memorize(pid, playitName))
+
+                p = findApplication("CommandLine", f"{playitName}")
+
+                if p != None:
+                    playit_gg_PID = p.pid
+                    playitProcess = psutil.Process(p.pid)
+                    
+                    print(mem.Memorize(p.pid, playitName))
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess) as e:
+                pass
+
+            try:
+                p = findApplication("NameUnsafe", playitCliName)
+
+                if p != None:
+                    playitCli_PID = p.pid
+                    playitCliProcess = psutil.Process(p.pid)
+                    
+                    print(mem.Memorize(p.pid, playitCliName))    
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess) as e:
+                pass            
+                        
             if serverPID == -1:
                 print(f"{serverName} could be found under name: {serverName}")
 
             if playit_gg_PID == -1:
                 print(f"Playit could not be found under name: {playitName}")
+
+            if playitCli_PID == -1:
+                print(f"Playit-Cli could not be found under name: {playitCliName}")
     else:
         print(f"Warning, server run at own risk. {processOutInPath} not found")
 else:
@@ -176,10 +239,17 @@ async def serverOn(asText: bool = False):
 
 @app.route('/awake/Playit')
 async def awakePlayit():
-    # serverIsOn = not serverIsOn
     resp = Response()
-    if await applicationRunning(playit_gg_PID, playit=True):
-        resp.status = 200
+
+    # if await applicationRunning(playit_gg_PID, playit=True):
+    # if playitProcess != None and playitCliProcess != None:
+    if playitCliProcess != None:
+        # if not data.isEmpty() and await applicationRunning(playit_gg_PID, playit=True):
+        # if playitProcess.is_running() or playitCliProcess.is_running():
+        if playitCliProcess.is_running():
+            resp.status = 200
+        else:
+            resp.status = 503
     else:
         resp.status = 503
         
@@ -189,7 +259,6 @@ async def awakePlayit():
 
 @app.route('/awake/GTNH')
 async def awakeGTNH():
-    # serverIsOn = not serverIsOn
     resp = Response()
     data = serverPing.Ping()
 
@@ -207,18 +276,31 @@ async def awakeGTNH():
 
 @app.route('/awake/All')
 async def awake():
-    # serverIsOn = not serverIsOn
     resp = Response()
+    resp.status = 503 # Make ready for error
+
     data = serverPing.Ping()
 
+    # if data != None and playitProcess != None and playitCliProcess != None:
+    #     # if not data.isEmpty() and await applicationRunning(playit_gg_PID, playit=True):
+    #     if not data.isEmpty() or (playitProcess.is_running() and playitCliProcess.is_running()):
+    #         resp.status = 200
+    #     else:
+    #         resp.status = 503
+    # else:
+    #     resp.status = 503
+
     if data != None:
-        if not data.isEmpty() and await applicationRunning(playit_gg_PID, playit=True):
+        if not data.isEmpty():
             resp.status = 200
-        else:
-            resp.status = 503
-    else:
-        resp.status = 503
-        
+
+    # if playitProcess != None and playitCliProcess != None:
+    #     if (playitProcess.is_running() and playitCliProcess.is_running()):
+    #         resp.status = 200
+    if playitCliProcess != None:
+        if playitCliProcess.is_running():
+            resp.status = 200
+
     # print("Received /start request")
     # return "Server started successfully!"
     return resp
@@ -258,17 +340,40 @@ async def computerTurnOff():
     global everythingOn
     global playit_gg_PID
 
-    playitRunning = False
+    playitNotRunning = True
+    playitCliNotRunning = True
+    serverNotRunning = True
 
+    if psutil.pid_exists(serverPID):
+        try:
+            p = psutil.Process(serverPID)
+
+            if p.is_running():
+                serverNotRunning = False
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            pass
+        
     if psutil.pid_exists(playit_gg_PID):
-        p = psutil.Process(playit_gg_PID)
+        try:
+            p = psutil.Process(playit_gg_PID)
 
-        if p.is_running():
-            playitRunning = True
+            if p.is_running():
+                playitNotRunning = False
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            pass
+
+    if psutil.pid_exists(playitCli_PID):
+        try:
+            p = psutil.Process(playitCli_PID)
+
+            if p.is_running():
+                playitCliNotRunning = False
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            pass
     
-    if playitRunning == False and not check_port(25575):
+    if serverNotRunning and playitNotRunning and playitCliNotRunning and not await check_port(25575):
         everythingOn = False
-        subprocess.run(["shutdown", "-s"])
+        subprocess.run(["shutdown", "-s", "-t", "5"])
 
         return "Computer is now turning off"
 
@@ -281,31 +386,76 @@ async def computerFORCEOff():
     ShutdownServer()
     everythingOn = False
 
-    subprocess.run(["shutdown", "-s"])
+    time.sleep(3)
 
     try:
-        if psutil.pid_exists(playit_gg_PID):
-            p = psutil.Process(playit_gg_PID)
-            p.kill()
-    except OSError:
-        pass
+        if psutil.pid_exists(serverPID):
+            p = psutil.Process(serverPID)
+            if p.is_running():
+                p.kill()
 
-    return "Computer was forced to shut down"
-
-@app.route('/stop')
-async def stopServer():
-    if await serverOn() or check_port(25575):
-        resp = ShutdownServer()
-        
         if psutil.pid_exists(playit_gg_PID):
             p = psutil.Process(playit_gg_PID)
             if p.is_running():
                 p.kill()
 
+        if psutil.pid_exists(playitCli_PID):
+            p = psutil.Process(playitCli_PID)
+            if p.is_running():
+                p.kill()
+    except OSError:
+        pass
+
+    subprocess.run(["shutdown", "-s", "-t", "0"])
+
+    return "Computer was forced to shut down"
+
+@app.route('/stop')
+async def stopServer():
+    resp = Response()
+    data = "Minecraft server was not closed |"
+
+    if await serverOn() or check_port(25575):
+        resp = ShutdownServer()
+        
+    if psutil.pid_exists(playit_gg_PID):
+        p = psutil.Process(playit_gg_PID)
+        if p.is_running():
+            os.kill(p.pid, signal.SIGINT)
+            # p.kill()
+            data.join(" Playit has been closed |")
+
+    if psutil.pid_exists(playitCli_PID):
+        p = psutil.Process(playitCli_PID)
+        if p.is_running():
+            # p.kill()
+            os.kill(p.pid, signal.SIGINT)
+            data.join(" PlayitCli has been closed |")
+    
+    resp.data = data
+
+    # if (not await serverOn() and not check_port(25575)) and (findApplication("PID", f"{playit_gg_PID}") == None and findApplication("PID", f"{playitCli_PID}") == None):
+    if (not await serverOn() and not check_port(25575)) and findApplication("PID", f"{playitCli_PID}") == None:
         return f"{resp.data}"
-        # return "Server has now been closed"
     else:
         return "Server is already closed"
+
+@app.route('/closeWebsite')
+async def CloseWebsite():
+    resp = Response()
+    resp.data = "Server has been closed"
+    try:
+        os.kill(os.getpid(), signal.SIGINT)
+
+        resp.status = 200
+
+        return resp
+        # return "Server has now been closed"
+    except OSError:
+        resp.status = 503
+        resp.data = "Website could not be closed"
+
+    return resp
 
 @app.route('/start')
 async def startServer():
@@ -463,7 +613,7 @@ async def startServer():
         return Home()
 
 def updatePids():
-    global serverPID, playit_gg_PID
+    global serverPID, playit_gg_PID, playitCli_PID, serverProcess, playitProcess, playitCliProcess
 
     checkedPaths = []
 
@@ -471,14 +621,23 @@ def updatePids():
     for knownPid in knownPidsPath.iterdir():
         pid, name, _, _, _ = Path.read_text(Path(knownPid)).split("|")
         pid = int(pid)
-        if name == serverName or name == playitName:
+        if name == serverName or name == playitName or name == playitCliName:
+            # mem.readMode = "normal"
             string_res, nr_res, stdIN, stdOUT, stdERR = mem.GetMemory(pid, name)
+            # mem.readMode = "text"
+            # string_res = mem.GetMemory(pid, name)
             if nr_res == 1:
                 if name == serverName:
                     serverPID = pid
+                    serverProcess = psutil.Process(pid)
                     
                 elif name == playitName:
                     playit_gg_PID = pid
+                    playitProcess = psutil.Process(pid)
+
+                elif name == playitCliName:
+                    playitCli_PID = pid
+                    playitCliProcess = psutil.Process(pid)
 
                 if stdIN.exists() and (stdIN != "." and stdIN != ".."):
                     checkedPaths.append(stdIN)
@@ -492,57 +651,129 @@ def updatePids():
                 worked = True
 
             if nr_res == 2 or nr_res == 4:
+                if name == serverName:
+                    serverProcess = None
+                    
+                elif name == playitName:
+                    playitProcess = None
+
+                elif name == playitCliName:
+                    playitCliProcess = None
+
                 pidInPath = Path(stdIN)
                 pidOutPath = Path(stdOUT)
                 pidErrPath = Path(stdERR)
                 
                 if pidInPath.exists() and pidInPath != "." and pidInPath != "..":
-                    pidInPath.unlink()
+                    print(f"{pidInPath} was found in {name}")
+                    # pidInPath.unlink()
 
                 if pidOutPath.exists() and pidOutPath != "." and pidOutPath != "..":
-                    pidOutPath.unlink()
+                    print(f"{pidOutPath} was found in {name}")
+                    # pidOutPath.unlink()
 
                 if pidErrPath.exists() and pidErrPath != "." and pidErrPath != "..":
-                    pidErrPath.unlink()
+                    print(f"{pidErrPath} was found in {name}")
+                    # pidErrPath.unlink()
 
             print(f"File: {knownPid} had memory result: {string_res}")
         
     for path in processOutInPath.iterdir():
         if path not in checkedPaths:
-            if path.exists():
-                path.unlink()
+            path.unlink()
     
     if not worked:
         print("There was no pids to double check")
 
     # mem.readMode = "text"
-    if serverPID == -1 or playit_gg_PID == -1:
-        for pid in psutil.pids():
-            try:
-                p = psutil.Process(pid)
+    if serverPID == -1 or playit_gg_PID == -1 or playitCli_PID == -1:
+        if serverPID == -1:
+            print(f"Checking if server is running under name: {serverName}")
 
-                if serverPID == -1:
-                    if f"{p.cmdline()}".find("GT_New_Horizons_2.7.4_Server_Java_17-21") != -1:
-                        serverPID = pid
-                        
-                        print(mem.Memorize(pid, serverName))
-                        
-                if playit_gg_PID == -1:
-                    if f"{p.cmdline()}".find(f'$host.ui.RawUI.WindowTitle = "{playitName}"') != -1:
-                        playit_gg_PID = pid
+        if playit_gg_PID == -1:
+            print(f"Checking if playit is running under name: {playitName}")
 
-                        name = p.cmdline()[1].split(";")[1].replace(" $host.ui.RawUI.WindowTitle = ", "")[1:-1]
-                        print(mem.Memorize(pid, playitName))
+        if playitCli_PID == -1:
+            print(f"Checking if playit-cli is running under name: {playitName}")
 
-            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess) as e:
-                pass
+        try:
+            # p = psutil.Process(pid)
+
+            # if serverPID == -1:
+            #     if f"{p.cmdline()}".find("GT_New_Horizons_2.7.4_Server_Java_17-21") != -1:
+            #         serverPID = pid
+                    
+            #         print(mem.Memorize(pid, serverName))
+
+            p = findApplication("CommandLine", "GT_New_Horizons_2.7.4_Server_Java_17-21")
+
+            if p != None:
+                serverPID = p.pid
+                serverProcess = psutil.Process(p.pid)
+                
+                print(mem.Memorize(p.pid, serverName))
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess) as e:
+            pass
+
+        try:
+            # if playit_gg_PID == -1:
+            #     if f"{p.cmdline()}".find(f'$host.ui.RawUI.WindowTitle = "{playitName}"') != -1:
+            #         playit_gg_PID = pid
+
+            #         name = p.cmdline()[1].split(";")[1].replace(" $host.ui.RawUI.WindowTitle = ", "")[1:-1]
+            #         print(mem.Memorize(pid, playitName))
+
+            p = findApplication("CommandLine", f"{playitName}")
+
+            if p != None:
+                playit_gg_PID = p.pid
+                playitProcess = psutil.Process(p.pid)
+                
+                print(mem.Memorize(p.pid, playitName))
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess) as e:
+            pass
+
+        try:
+            p = findApplication("NameUnsafe", playitCliName)
+
+            if p != None:
+                playitCli_PID = p.pid
+                playitCliProcess = psutil.Process(p.pid)
+                
+                print(mem.Memorize(p.pid, playitCliName))    
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess) as e:
+            pass            
+                    
+        if serverPID == -1:
+            print(f"{serverName} could be found under name: {serverName}")
+
+        if playit_gg_PID == -1:
+            print(f"Playit could not be found under name: {playitName}")
+
+        if playitCli_PID == -1:
+            print(f"Playit could not be found under name: {playitCliName}")
 
 @app.route('/')
 def Home():
     updatePids()
     return render_template("MainPage.html")
 
+def StartWebMonitor():
+    global updateThread
+
+    # updateThread = ControlledThread(WhileFunctionWithStop(updatePids), None, name="BackgroundUpdateThread")
+    # updateThread.start()
+
+    app.run(host='0.0.0.0', port=8080, debug=False)
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080, debug=True)
+    # Wait until the website is closed
+    print("[internal] Waiting until website is closed")
+    StartWebMonitor()
+
+    # Stop the rest of the script
+    # updateThread.stop()
+    # updateThread.join(5.0) # Wait for 5 seconds in case there might be many pids to check
+    print("Update thread is stopped")
 
     print(f"Everything has now been closed")

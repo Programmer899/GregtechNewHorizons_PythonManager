@@ -51,11 +51,26 @@
                 </div>
                 
                 <!-- Blank line space -->
-                <div id="adngin-mid_content-0" style="min-width: 468px; min-height: 50px; display: flex; justify-content: space-around; align-items: center; width: 468px; flex-direction: row;">
+                <div id="adngin-mid_content-0" style="min-width: 468px; min-height: 10px; display: flex; justify-content: space-around; align-items: center; width: 468px; flex-direction: row;">
+                    <div id="adngin-mid_content-0-adaptive-group-0-placement-0"></div>
+                </div>
+                
+                <div class="panel">
+                    <button id="CloseWebsite" name="CloseWebsite" class="btn" onclick="CloseWebsite()">Close Website</button>
+                </div>
+                
+                <!-- Blank line space -->
+                <div id="adngin-mid_content-0" style="min-width: 468px; min-height: 10px; display: flex; justify-content: space-around; align-items: center; width: 468px; flex-direction: row;">
                     <div id="adngin-mid_content-0-adaptive-group-0-placement-0"></div>
                 </div>
             </div>
         </div>
+
+        <!-- Blank line space -->
+        <div id="adngin-mid_content-0" style="min-width: 468px; min-height: 50px; display: flex; justify-content: space-around; align-items: center; width: 468px; flex-direction: row;">
+            <div id="adngin-mid_content-0-adaptive-group-0-placement-0"></div>
+        </div>
+
         <div>
             <div class="panel">
                 <button id="computerTurnOff" name="computerTurnOff" class="btn" onclick="computerTurnOff()">Turn of computer</button>
@@ -70,6 +85,13 @@
             function stop() {
                 fetch('/stop')
                 .then(r => r.text())
+                .then(t => alert('Server response: ' + t))
+                .catch(e => alert('Error: ' + e));
+            }
+
+            function CloseWebsite() {
+                fetch('/closeWebsite')
+                .then(r => r.body())
                 .then(t => alert('Server response: ' + t))
                 .catch(e => alert('Error: ' + e));
             }

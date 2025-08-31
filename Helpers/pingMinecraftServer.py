@@ -22,10 +22,10 @@ class ServerPing():
     def Ping(self) -> ServerPingResponse|None:
         try:
             status = self.__server.status()
-            print(f"The server has {status.players.online} player(s) online and replied in {status.latency} ms")
+            # print(f"The server has {status.players.online} player(s) online and replied in {status.latency} ms")
 
             latency = status.latency
-            print(f"The server replied in {latency} ms")
+            # print(f"The server replied in {latency} ms")
 
             # query = self.__server.query(tries=10)
             # print(f"The server has the following players online: {', '.join(query.players.names)}")
