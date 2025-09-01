@@ -9,7 +9,7 @@ from Helpers.ShutdownServer import ShutdownServer
 from Helpers.pingMinecraftServer import ServerPingResponse, ServerPing
 from Helpers.findApplication import findApplication
 from Helpers.controlled import WhileFunctionWithStop, ControlledThread
-from Helpers.repeatedFunction import RepeatedFunction
+from Helpers.loggedUsers import isUserLoggedIn
 
 app = Flask(__name__)
 
@@ -26,7 +26,7 @@ playitggStartCWD = "C:\\Users\\lindg\\Apps\\playit_gg\\bin"
 
 serverName = "GTNH Server"
 playitName = "Playit.gg"
-playitCliName = "playit"
+playitCliName = "playit-cli"
 
 serverPID = -1
 playit_gg_PID = -1
@@ -203,7 +203,11 @@ def internal_error(error):
 
 @app.errorhandler(404)
 def not_found(error):
-    return "Excuse me, this page does not exist!"
+    resp = Response()
+    resp.data = "Excuse me, this page does not exist!"
+    resp.status = 503
+
+    return resp
 
 async def applicationRunning(pid: int, playit: bool = False, gtnh: bool = False):
     global playit_gg_PID, serverPID
@@ -243,6 +247,7 @@ async def awakePlayit():
 
     # if await applicationRunning(playit_gg_PID, playit=True):
     # if playitProcess != None and playitCliProcess != None:
+    print(f"Playit cli process: {playitCliProcess}")
     if playitCliProcess != None:
         # if not data.isEmpty() and await applicationRunning(playit_gg_PID, playit=True):
         # if playitProcess.is_running() or playitCliProcess.is_running():
@@ -257,8 +262,8 @@ async def awakePlayit():
     # return "Server started successfully!"
     return resp
 
-@app.route('/awake/GTNH')
-async def awakeGTNH():
+@app.route('/awake/GTNHJoinable')
+async def awakeGTNHJoinable():
     resp = Response()
     data = serverPing.Ping()
 
@@ -273,6 +278,25 @@ async def awakeGTNH():
     # print("Received /start request")
     # return "Server started successfully!"
     return resp
+
+@app.route('/awake/GTNHApplication')
+async def awakeGTNHApplication():
+    resp = Response()
+    resp.status = 503
+
+    try:
+        p = findApplication("CommandLine", "GT_New_Horizons_2.7.4_Server_Java_17-21")
+
+        # if p != None:
+        #     resp.status = 200
+        #     print("GTNH was on")
+        # else:
+        #     print("GTNH was not on")
+
+        return resp
+    except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess) as e:
+        print("GTNH could not be gotten status")
+        return resp
 
 @app.route('/awake/All')
 async def awake():
@@ -337,78 +361,101 @@ async def starting():
 
 @app.route('/computerTurnOff')
 async def computerTurnOff():
-    global everythingOn
-    global playit_gg_PID
+    global everythingOn, playit_gg_PID
+    resp = Response()
 
-    playitNotRunning = True
-    playitCliNotRunning = True
-    serverNotRunning = True
+    if isUserLoggedIn("lindg") or isUserLoggedIn("LAdmin"):
+        resp.data = "One of the valid users was logged in, you are not allowed to shut down the computer."
+        resp.status = 503
+        return resp
+    else:
+        resp.data = "Computer could not be turned off, server or playit is still on"
+        resp.status = 503
 
-    if psutil.pid_exists(serverPID):
-        try:
-            p = psutil.Process(serverPID)
+        playitNotRunning = True
+        playitCliNotRunning = True
+        serverNotRunning = True
 
-            if p.is_running():
-                serverNotRunning = False
-        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-            pass
+        if psutil.pid_exists(serverPID):
+            try:
+                p = psutil.Process(serverPID)
+
+                if p.is_running():
+                    serverNotRunning = False
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                pass
+            
+        if psutil.pid_exists(playit_gg_PID):
+            try:
+                p = psutil.Process(playit_gg_PID)
+
+                if p.is_running():
+                    playitNotRunning = False
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                pass
+
+        if psutil.pid_exists(playitCli_PID):
+            try:
+                p = psutil.Process(playitCli_PID)
+
+                if p.is_running():
+                    playitCliNotRunning = False
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                pass
         
-    if psutil.pid_exists(playit_gg_PID):
-        try:
-            p = psutil.Process(playit_gg_PID)
+        if serverNotRunning and playitNotRunning and playitCliNotRunning and not await check_port(25575):
+            everythingOn = False
 
-            if p.is_running():
-                playitNotRunning = False
-        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-            pass
+            resp.data = "Computer is now turning off"
+            resp.status = 200
 
-    if psutil.pid_exists(playitCli_PID):
-        try:
-            p = psutil.Process(playitCli_PID)
+            subprocess.run(["shutdown", "-s", "-t", "5"])
 
-            if p.is_running():
-                playitCliNotRunning = False
-        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-            pass
-    
-    if serverNotRunning and playitNotRunning and playitCliNotRunning and not await check_port(25575):
-        everythingOn = False
-        subprocess.run(["shutdown", "-s", "-t", "5"])
-
-        return "Computer is now turning off"
-
-    return "Computer could not be turned off, server or playit is still on"
+        return resp
 
 @app.route('/computerFORCEOff')
 async def computerFORCEOff():
     global everythingOn
+    resp = Response()
 
-    ShutdownServer()
-    everythingOn = False
+    if isUserLoggedIn("lindg") or isUserLoggedIn("LAdmin"):
+        resp.data = "One of the valid users was logged in, you are not allowed to force shut down the computer."
+        resp.status = 503
+        return resp
+    else:
 
-    time.sleep(3)
+        ShutdownServer()
+        everythingOn = False
 
-    try:
-        if psutil.pid_exists(serverPID):
-            p = psutil.Process(serverPID)
-            if p.is_running():
-                p.kill()
+        time.sleep(3)
 
-        if psutil.pid_exists(playit_gg_PID):
-            p = psutil.Process(playit_gg_PID)
-            if p.is_running():
-                p.kill()
+        try:
+            if psutil.pid_exists(serverPID):
+                p = psutil.Process(serverPID)
+                if p.is_running():
+                    p.kill()
 
-        if psutil.pid_exists(playitCli_PID):
-            p = psutil.Process(playitCli_PID)
-            if p.is_running():
-                p.kill()
-    except OSError:
-        pass
+            if psutil.pid_exists(playit_gg_PID):
+                p = psutil.Process(playit_gg_PID)
+                if p.is_running():
+                    p.kill()
 
-    subprocess.run(["shutdown", "-s", "-t", "0"])
+            if psutil.pid_exists(playitCli_PID):
+                p = psutil.Process(playitCli_PID)
+                if p.is_running():
+                    p.kill()
+            
+            resp.data = "Computer was forced to shut down"
+            resp.status = 200
 
-    return "Computer was forced to shut down"
+        except OSError:
+            resp.data = "The computer encounterd an error and could not be forced shut down."
+            resp.status = 503
+            return resp
+
+        subprocess.run(["shutdown", "-s", "-t", "0"])
+
+        return resp
 
 @app.route('/stop')
 async def stopServer():
@@ -443,19 +490,23 @@ async def stopServer():
 @app.route('/closeWebsite')
 async def CloseWebsite():
     resp = Response()
-    resp.data = "Server has been closed"
-    try:
-        os.kill(os.getpid(), signal.SIGINT)
 
-        resp.status = 200
+    if not (isUserLoggedIn("lindg") or isUserLoggedIn("LAdmin")):
+        resp.data = "No valid user was logged in, you are not allowed to close the website."
+        resp.status = 503
+        return resp
+    else:
+        try:
+            os.kill(os.getpid(), signal.SIGINT)
+
+            resp.data = "Website has been closed"
+            resp.status = 200
+
+        except OSError:
+            resp.data = "Website could not be closed"
+            resp.status = 503
 
         return resp
-        # return "Server has now been closed"
-    except OSError:
-        resp.status = 503
-        resp.data = "Website could not be closed"
-
-    return resp
 
 @app.route('/start')
 async def startServer():
@@ -755,14 +806,19 @@ def updatePids():
 
 @app.route('/')
 def Home():
-    updatePids()
+    # updatePids()
     return render_template("MainPage.html")
 
 def StartWebMonitor():
     global updateThread
 
-    # updateThread = ControlledThread(WhileFunctionWithStop(updatePids), None, name="BackgroundUpdateThread")
-    # updateThread.start()
+    try:
+        updateThread = ControlledThread(WhileFunctionWithStop(updatePids), None, name="BackgroundUpdateThread")
+        updateThread.start()
+        thread_not_running, threadFunc_not_running = updateThread.stopped()
+        print(f"Thread stopped: {thread_not_running}, Thread function stopped: {threadFunc_not_running}")
+    except OSError as e:
+        print(f"Thread got error: {e}")
 
     app.run(host='0.0.0.0', port=8080, debug=False)
 

@@ -13,9 +13,9 @@ from functools import wraps
 #         return wrapper
 #     return decorator
 
-class WhileFunctionWithStop:
+class WhileFunctionWithStop():
     def __init__(self, func):
-        wraps(func)(self)
+        # wraps(func)(self)
         self._func = func
         self.stop_event = threading.Event()
         self.name = f"FunctionWithStop_{uuid.uuid4()}"
@@ -27,19 +27,13 @@ class WhileFunctionWithStop:
         return self.stop_event.is_set()
 
     def __call__(self, *args, **kwargs):
-        hasNotBeenRunning = True
         while True:
             # Check stop condition before executing
             if self.stopped():
                 print(f"{self.name} was stopped before execution.")
                 break
-
-            hasNotBeenRunning = False
                 
-            return self._func(self.stop_event, *args, **kwargs)
-        
-        if hasNotBeenRunning:
-            return False
+            return self._func(*args, **kwargs)
         return True
 
 class ControlledThread(threading.Thread):
@@ -58,7 +52,7 @@ class ControlledThread(threading.Thread):
         self._stop_event.set()
 
     def stopped(self):
-        return self._stop_event.is_set()
+        return self._stop_event.is_set(), self.target.stopped()
 
     def run(self):
         try:

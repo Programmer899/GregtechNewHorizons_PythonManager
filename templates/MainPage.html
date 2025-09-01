@@ -1,32 +1,26 @@
 <!DOCTYPE html>
 <html>
     <body style="background-color: powderblue;" onload="setInterval(() => {pingServer()}, 1*1000)">
+        <h4 id="TypeOfDevice" name="TypeOfDevice" onload="self.textContent = 'You have logged in as: ' + getDeviceType()"></h1>
         <h1>Welcome to my web based monitor - Gregtech New Horizons</h1>
         <p>Bare with me of the lack of efficiency</p>
 
-        <!-- Blank line space -->
-        <div id="adngin-mid_content-0" style="min-width: 468px; min-height: 50px; display: flex; justify-content: space-around; align-items: center; width: 468px; flex-direction: row;">
-            <div id="adngin-mid_content-0-adaptive-group-0-placement-0"></div>
-        </div>
-        
-        <div>
-            <div>
-                <div style="width: auto; height: auto;">
+        <div style="text-align: center;">
+            <div style="text-align: center;">
+                <div style="width: auto; height: auto; text-align: center;">
                     <h1>Server Active</h1>
-                    <img id="ServerStartingMark" name="ServerStartingMark" src="{{url_for('static',filename='images/CrossMark.png')}}" style="max-width: 75px; max-height: 75px;" alt="Server Starting">
-                    <img id="ServerActiveMark" name="ServerActiveMark" src="{{url_for('static',filename='images/CrossMark.png')}}" style="max-width: 75px; max-height: 75px;" alt="Server Active">
-                </div>
-                
-                <!-- Blank line space -->
-                <div id="adngin-mid_content-0" style="min-width: 468px; min-height: 50px; display: flex; justify-content: space-around; align-items: center; width: 468px; flex-direction: row;">
-                    <div id="adngin-mid_content-0-adaptive-group-0-placement-0"></div>
-                </div>
-            </div>
-    
-            <div>
-                <div style="width: auto; height: auto;">
-                    <h1>Playit Active</h1>
-                    <img id="PlayitActiveMark" name="PlayitActiveMark" src="{{url_for('static',filename='images/CrossMark.png')}}" style="max-width: 75px; max-height: 75px;" alt="Playit Active">
+                    <img id="ServerOnMark" name="ServerOnMark" src="{{url_for('static',filename='images/CrossMark.png')}}" style="vertical-align:middle; max-width: 75px; max-height: 75px;" alt="Server On">
+                    <div style='vertical-align:middle; display:inline;'>
+                        <h5>
+                            Server is on
+                        </h5>
+                    </div>
+                    <img id="ServerActiveMark" name="ServerActiveMark" src="{{url_for('static',filename='images/CrossMark.png')}}" style="vertical-align:middle; max-width: 75px; max-height: 75px;" alt="Server Active">
+                    <div style='vertical-align:middle; display:inline;'>
+                        <h5>
+                            Server is joinable
+                        </h5>
+                    </div>
                 </div>
                 
                 <!-- Blank line space -->
@@ -35,10 +29,27 @@
                 </div>
             </div>
             
-            <div>
+            <div style="text-align: center;">
+                <div style="width: auto; height: auto; text-align: center;">
+                    <h1>Playit Active</h1>
+                    <img id="PlayitActiveMark" name="PlayitActiveMark" src="{{url_for('static',filename='images/CrossMark.png')}}" style="vertical-align:middle; max-width: 75px; max-height: 75px;" alt="Playit Active">
+                    <div style='vertical-align:middle; display:inline;'>
+                        <h5>
+                            Playit is active
+                        </h5>
+                    </div>
+                </div>
+                
+                <!-- Blank line space -->
+                <div id="adngin-mid_content-0" style="min-width: 468px; min-height: 50px; display: flex; justify-content: space-around; align-items: center; width: 468px; flex-direction: row;">
+                    <div id="adngin-mid_content-0-adaptive-group-0-placement-0"></div>
+                </div>
+            </div>
+            
+            <div style="text-align: center;">
                 <h1>Actions</h1>
                 <div class="panel">
-                    <button id="StartButton" name="StartButton" class="btn" onclick="start()" disabled=false>Start</button>
+                    <button id="StartButton" name="StartButton" class="btn" onclick="start()" disabled=false style="font-size: 200%; min-width: 100px; min-height: 50px; width: 100%; height: 50px;">Start</button>
                 </div>
                 
                 <!-- Blank line space -->
@@ -47,7 +58,7 @@
                 </div>
                 
                 <div class="panel">
-                    <button id="StopButton" name="StopButton" class="btn" onclick="stop()" disabled=false>Stop</button>
+                    <button id="StopButton" name="StopButton" class="btn" onclick="stop()" disabled=false style="font-size: 200%; min-width: 100px; min-height: 50px; width: 100%; height: 50px;">Stop</button>
                 </div>
                 
                 <!-- Blank line space -->
@@ -56,7 +67,7 @@
                 </div>
                 
                 <div class="panel">
-                    <button id="CloseWebsite" name="CloseWebsite" class="btn" onclick="CloseWebsite()">Close Website</button>
+                    <button id="CloseWebsite" name="CloseWebsite" class="btn" onclick="CloseWebsite()" style="font-size: 200%; min-width: 100px; min-height: 50px; width: 100%; height: 50px;">Close Website</button>
                 </div>
                 
                 <!-- Blank line space -->
@@ -65,23 +76,39 @@
                 </div>
             </div>
         </div>
-
+        
         <!-- Blank line space -->
         <div id="adngin-mid_content-0" style="min-width: 468px; min-height: 50px; display: flex; justify-content: space-around; align-items: center; width: 468px; flex-direction: row;">
             <div id="adngin-mid_content-0-adaptive-group-0-placement-0"></div>
         </div>
-
-        <div>
+        
+        <div style="text-align: center;">
             <div class="panel">
-                <button id="computerTurnOff" name="computerTurnOff" class="btn" onclick="computerTurnOff()">Turn of computer</button>
+                <button id="computerTurnOff" name="computerTurnOff" class="btn" onclick="computerTurnOff()" style="font-size: 200%; min-width: 100px; min-height: 50px; width: 100%; height: 50px;">Turn of computer</button>
+            </div>
+
+            <!-- Blank line space -->
+            <div id="adngin-mid_content-0" style="min-width: 468px; min-height: 10px; display: flex; justify-content: space-around; align-items: center; width: 468px; flex-direction: row;">
+                <div id="adngin-mid_content-0-adaptive-group-0-placement-0"></div>
             </div>
 
             <div class="panel">
-                <button id="computerFORCEOff" name="computerFORCEOff" class="btn" onclick="computerFORCEOff()">Force shut down computer</button>
+                <button id="computerFORCEOff" name="computerFORCEOff" class="btn" onclick="computerFORCEOff()" style="font-size: 200%; min-width: 100px; min-height: 50px; width: 100%; height: 50px;">Force shut down computer</button>
             </div>
         </div>
         
         <script>
+            function getDeviceType() {
+                if(navigator.userAgent.match(/mobile/i)) {
+                    return 'Mobile';
+                } else if (navigator.userAgent.match(/iPad|Android|Touch/i)) {
+                    return 'Tablet';
+                } else {
+                    return 'Desktop';
+                }
+            }
+            document.getElementById("TypeOfDevice").textContent = "You have logged in as: " + getDeviceType();
+
             function stop() {
                 fetch('/stop')
                 .then(r => r.text())
@@ -91,7 +118,7 @@
 
             function CloseWebsite() {
                 fetch('/closeWebsite')
-                .then(r => r.body())
+                .then(r => r.text())
                 .then(t => alert('Server response: ' + t))
                 .catch(e => alert('Error: ' + e));
             }
@@ -109,7 +136,7 @@
                 .then(t => alert('Server response: ' + t))
                 .catch(e => alert('Error: ' + e));
             }
-
+            
             function computerFORCEOff() {
                 fetch('/computerFORCEOff')
                 .then(r => r.text())
@@ -118,12 +145,21 @@
             }
             
             function pingServer() {
-                fetch('/awake/GTNH', { signal: AbortSignal.timeout(5000) }).then((response) => {
+                fetch('/awake/GTNHJoinable', { signal: AbortSignal.timeout(5000) }).then((response) => {
                     const ServerActiveMark = document.getElementById("ServerActiveMark")
                     if (response.ok) {
                         ServerActiveMark.setAttribute("src", "{{url_for('static',filename='images/CheckMark.png')}}")
                     } else {
                         ServerActiveMark.setAttribute("src", "{{url_for('static',filename='images/CrossMark.png')}}")
+                    }
+                });
+                
+                fetch('/awake/GTNHApplication', { signal: AbortSignal.timeout(5000) }).then((response) => {
+                    const ServerOnMark = document.getElementById("ServerOnMark")
+                    if (response.ok) {
+                        ServerOnMark.setAttribute("src", "{{url_for('static',filename='images/CheckMark.png')}}")
+                    } else {
+                        ServerOnMark.setAttribute("src", "{{url_for('static',filename='images/CrossMark.png')}}")
                     }
                 });
 
@@ -146,15 +182,6 @@
                     } else {
                         StartButton.disabled = false
                         StopButton.disabled = true
-                    }
-                });
-
-                fetch('/starting', { signal: AbortSignal.timeout(5000) }).then((response) => {
-                    const ServerStartingMark = document.getElementById("ServerStartingMark")
-                    if (response.ok) {
-                        ServerStartingMark.setAttribute("src", "{{url_for('static',filename='images/CheckMark.png')}}")
-                    } else {
-                        ServerStartingMark.setAttribute("src", "{{url_for('static',filename='images/CrossMark.png')}}")
                     }
                 });
             }
