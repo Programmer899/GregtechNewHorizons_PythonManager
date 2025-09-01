@@ -9,3 +9,8 @@ def isUserLoggedIn(checkerName: str = ""):
             return True
             
     return False
+
+if __name__ == "__main__":
+    print(isUserLoggedIn("lindg"))
+    print(isUserLoggedIn("LAdmin"))
+    pass

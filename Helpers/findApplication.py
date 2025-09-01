@@ -34,3 +34,10 @@ def findApplication(serchAlgorythm: Literal["Name", "NameUnsafe", "CommandLine",
         return process
     else:
         return None
+
+if __name__ == "__main__":
+    p = findApplication("CommandLine", "GT_New_Horizons_2.7.4_Server_Java_17-21")
+    print(p)
+    if p != None:
+        print(p.cmdline())
+    pass
