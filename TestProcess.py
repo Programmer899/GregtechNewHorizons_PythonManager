@@ -48,10 +48,9 @@ async def applicationRunning(pid: int, raw: bool):
 
 def PrintSafeProcess(filterName, process: psutil.Process):
     try:
-        print(f"Name: {process.name()}")
-        if process.name().lower().find(filterName.lower()) == -1:
+        if process.name().find(filterName) == -1:
             return
-        os.kill(process.pid, signal.SIGINT)
+        print(f"Name: {process.name()}")
     except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess) as e:
         pass
     try:
@@ -83,6 +82,8 @@ def PrintSafeProcess(filterName, process: psutil.Process):
     except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess) as e:
         pass
 
+    print()
+
 if __name__ == '__main__':
     for pid_raw in psutil.pids():
         # pid = pid_raw.pid
@@ -91,11 +92,9 @@ if __name__ == '__main__':
             if psutil.pid_exists(pid):
                 p = psutil.Process(pid)
 
-                PrintSafeProcess("playit", p)
+                PrintSafeProcess("py.exe", p)
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess) as e:
             # print(e)
             pass
-
-        print()
 
     # print(applicationRunning("Playit.gg"))

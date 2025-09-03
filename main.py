@@ -1,4 +1,4 @@
-import psutil, subprocess, time, os, uuid, signal, threading
+import psutil, subprocess, time, os, uuid, signal, sys
 from pathlib import Path
 from flask import Flask, Response, render_template, request
 
@@ -822,9 +822,9 @@ def StartWebMonitor():
         updateThread = ControlledThread(WhileFunctionWithStop(updatePids), None, name="BackgroundUpdateThread")
         updateThread.start()
         thread_not_running, threadFunc_not_running = updateThread.stopped()
-        print(f"Thread stopped: {thread_not_running}, Thread function stopped: {threadFunc_not_running}")
+        print(f"Update Thread stopped: {thread_not_running}, Update Thread function stopped: {threadFunc_not_running}")
     except OSError as e:
-        print(f"Thread got error: {e}")
+        print(f"Update Thread got error: {e}")
 
     app.run(host='0.0.0.0', port=8080, debug=False)
 
@@ -834,8 +834,8 @@ if __name__ == '__main__':
     StartWebMonitor()
 
     # Stop the rest of the script
-    # updateThread.stop()
-    # updateThread.join(5.0) # Wait for 5 seconds in case there might be many pids to check
+    updateThread.stop()
+    updateThread.join(5.0) # Wait for 5 seconds in case there might be many pids to check
     print("Update thread is stopped")
 
     print(f"Everything has now been closed")

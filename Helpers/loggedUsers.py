@@ -11,6 +11,4 @@ def isUserLoggedIn(checkerName: str = ""):
     return False
 
 if __name__ == "__main__":
-    print(isUserLoggedIn("lindg"))
-    print(isUserLoggedIn("LAdmin"))
     pass

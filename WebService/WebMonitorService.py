@@ -5,8 +5,9 @@ import servicemanager
 import subprocess
 import sys
 import os
+from pathlib import Path
 
-class MyPythonService(win32serviceutil.ServiceFramework):
+class WebMonitorService(win32serviceutil.ServiceFramework):
     _svc_name_ = "GTNH_Web_Monitor"
     _svc_display_name_ = "GregtechNewHorizons Web Monitor"
 
@@ -22,43 +23,24 @@ class MyPythonService(win32serviceutil.ServiceFramework):
         win32event.SetEvent(self.stop_event)
 
     def SvcDoRun(self):
-        servicemanager.LogInfoMsg("MyPythonService is starting...")
+        servicemanager.LogInfoMsg("WebMonitorService is starting...")
 
-        python_exe = sys.executable  # samma python som kör tjänsten
-        script_path = r"C:\Users\lindg\Programming\Webb\GregtechNewHorizons\main.py"
-        log_file = r"C:\\Users\\lindg\\Programming\\Webb\\GregtechNewHorizons\\WebService\\service.log"
+        python_exe = sys.executable  # Same as python running this script
+        script_cwd = f"{sys.path[0]}\\..\\"
 
-        flags = (
-            subprocess.CREATE_BREAKAWAY_FROM_JOB
-            | subprocess.CREATE_NEW_PROCESS_GROUP
-            | subprocess.CREATE_NEW_CONSOLE
-        )
+        script_path = f"{script_cwd}main.py"
+        log_file = f"{script_cwd}WebService\\service.log"
 
-        # # command = ["powershell.exe", f"cd 'C:\Users\lindg\Programming\Webb\GregtechNewHorizons'; $host.ui.RawUI.WindowTitle = '{self._svc_name_}'; & '{script_path}'"]
-        # command = [f'{python_exe}', f'cd "C:\\Users\\lindg\\Programming\\Webb\\GregtechNewHorizons"; $host.ui.RawUI.WindowTitle = "{self._svc_name_}"; & "{script_path}"']
+        Path(log_file).touch()
 
-        # # starta ditt skript som subprocess
-        # with open(log_file, "a") as f:
-        #     self.proc = subprocess.Popen(
-        #         command,
-        #         creationflags=flags,
-        #         stdout=f,
-        #         stderr=f,
-        #         bufsize=1,
-        #         universal_newlines=True
-        #     )
+        command = [python_exe, script_path]
 
-        script_dir = "C:\\Users\\lindg\\Programming\\Webb\\GregtechNewHorizons"
-
-        command = ['C:\\WINDOWS\\py.exe', 'C:\\Users\\lindg\\Programming\\Webb\\GregtechNewHorizons\\main.py']
-
-        with open(log_file, "a") as f:
+        with open(log_file, "w") as f:
             self.proc = subprocess.Popen(
-                # [python_exe, "C:\\Users\\lindg\\Programming\\Webb\\GregtechNewHorizons\\main.py"],
                 command,
                 stdout=f,
                 stderr=f,
-                cwd=script_dir,  # set working directory
+                cwd=script_cwd,  # set working directory
                 creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
                 # creationflags=flags,
                 bufsize=1,
@@ -70,8 +52,8 @@ class MyPythonService(win32serviceutil.ServiceFramework):
         # Vänta tills vi får stop-event
         win32event.WaitForSingleObject(self.stop_event, win32event.INFINITE)
 
-        servicemanager.LogInfoMsg("MyPythonService is stopped.")
+        servicemanager.LogInfoMsg("WebMonitorService is stopped.")
 
 
 if __name__ == '__main__':
-    win32serviceutil.HandleCommandLine(MyPythonService)
+    win32serviceutil.HandleCommandLine(WebMonitorService)

@@ -1,5 +1,4 @@
-/__pycache__
+__pycache__
 /knownPids
 /ProcessOutIn
-/WebService/__pycache__
 /WebService/*.log
