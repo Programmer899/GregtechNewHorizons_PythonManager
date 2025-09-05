@@ -25,17 +25,26 @@ class WebMonitorService(win32serviceutil.ServiceFramework):
     def SvcDoRun(self):
         servicemanager.LogInfoMsg("WebMonitorService is starting...")
 
-        python_exe = sys.executable  # Same as python running this script
+        # python_exe = sys.executable  # Same as python running this script
+        python_exe = "c:\\Python311\\python.exe"
         script_cwd = f"{sys.path[0]}\\..\\"
 
         script_path = f"{script_cwd}main.py"
         log_file = f"{script_cwd}WebService\\service.log"
+
+        # flags = (
+        #     subprocess.CREATE_BREAKAWAY_FROM_JOB
+        #     | subprocess.CREATE_NEW_PROCESS_GROUP
+        #     | subprocess.CREATE_NEW_CONSOLE
+        # )
 
         Path(log_file).touch()
 
         command = [python_exe, script_path]
 
         with open(log_file, "w") as f:
+            # f.write(python_exe)
+
             self.proc = subprocess.Popen(
                 command,
                 stdout=f,
@@ -53,7 +62,6 @@ class WebMonitorService(win32serviceutil.ServiceFramework):
         win32event.WaitForSingleObject(self.stop_event, win32event.INFINITE)
 
         servicemanager.LogInfoMsg("WebMonitorService is stopped.")
-
 
 if __name__ == '__main__':
     win32serviceutil.HandleCommandLine(WebMonitorService)

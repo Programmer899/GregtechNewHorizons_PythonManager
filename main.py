@@ -293,11 +293,11 @@ async def awakeGTNHApplication():
     try:
         p = findApplication("CommandLine", "GT_New_Horizons_2.7.4_Server_Java_17-21")
 
-        # if p != None:
-        #     resp.status = 200
-        #     print("GTNH was on")
-        # else:
-        #     print("GTNH was not on")
+        if p != None:
+            resp.status = 200
+            print("GTNH was on")
+        else:
+            print("GTNH was not on")
 
         return resp
     except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess) as e:
@@ -320,16 +320,13 @@ async def awake():
     # else:
     #     resp.status = 503
 
-    if data != None:
-        if not data.isEmpty():
+    if data != None and playitCliProcess != None:
+        if not data.isEmpty() and playitCliProcess.is_running():
             resp.status = 200
 
     # if playitProcess != None and playitCliProcess != None:
     #     if (playitProcess.is_running() and playitCliProcess.is_running()):
     #         resp.status = 200
-    if playitCliProcess != None:
-        if playitCliProcess.is_running():
-            resp.status = 200
 
     # print("Received /start request")
     # return "Server started successfully!"
@@ -468,7 +465,7 @@ async def stopServer():
     resp = Response()
     data = "Minecraft server was not closed |"
 
-    if await serverOn() or check_port(25575):
+    if await serverOn() or await check_port(25575):
         resp = ShutdownServer()
         
     if psutil.pid_exists(playit_gg_PID):
@@ -488,7 +485,7 @@ async def stopServer():
     resp.data = data
 
     # if (not await serverOn() and not check_port(25575)) and (findApplication("PID", f"{playit_gg_PID}") == None and findApplication("PID", f"{playitCli_PID}") == None):
-    if (not await serverOn() and not check_port(25575)) and findApplication("PID", f"{playitCli_PID}") == None:
+    if (not await serverOn() and not await check_port(25575)) and findApplication("PID", f"{playitCli_PID}") == None:
         return f"{resp.data}"
     else:
         return "Server is already closed"
